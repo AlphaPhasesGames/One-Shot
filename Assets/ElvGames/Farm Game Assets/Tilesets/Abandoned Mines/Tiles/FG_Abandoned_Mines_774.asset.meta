@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 4c9afe74b5818c4448fcd6984df92d8c
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 245745
+  packageName: 2D TopDown Mines 16x16 Tileset
+  packageVersion: 1.0.0
+  assetPath: Assets/ElvGames/Farm Game Assets/Tilesets/Abandoned Mines/Tiles/FG_Abandoned_Mines_774.asset
+  uploadId: 630108

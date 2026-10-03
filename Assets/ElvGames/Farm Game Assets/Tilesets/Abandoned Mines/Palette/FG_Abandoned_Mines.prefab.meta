@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 53f4813339f74b84e9b045cbf4a57473
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 245745
+  packageName: 2D TopDown Mines 16x16 Tileset
+  packageVersion: 1.0.0
+  assetPath: Assets/ElvGames/Farm Game Assets/Tilesets/Abandoned Mines/Palette/FG_Abandoned_Mines.prefab
+  uploadId: 630108
