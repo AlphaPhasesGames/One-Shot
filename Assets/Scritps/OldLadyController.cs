@@ -36,6 +36,14 @@ public class OldLadyController : MonoBehaviour
     [Header("Ground Check")]
     public float groundCheckDistance = 0.7f;
     private bool wasGrounded;
+
+    [Header("Air Rotation")]
+    public InputActionReference rotateAction;
+    public float rotationSpeed = 360f;
+
+    private float rotationInput;
+
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -45,6 +53,7 @@ public class OldLadyController : MonoBehaviour
     {
         moveAction.action.Enable();
         jumpAction.action.Enable();
+        rotateAction.action.Enable();
 
         jumpAction.action.performed += Jump;
     }
@@ -55,13 +64,14 @@ public class OldLadyController : MonoBehaviour
 
         moveAction.action.Disable();
         jumpAction.action.Disable();
+        rotateAction.action.Disable();
     }
 
     private void Update()
     {
         horizontalInput = moveAction.action.ReadValue<Vector2>().x;
-
-        isGrounded = Physics2D.Raycast(rb.position,Vector2.down,groundCheckDistance,groundLayer);
+        rotationInput = rotateAction.action.ReadValue<float>();
+        isGrounded = Physics2D.Raycast(rb.position, Vector2.down, groundCheckDistance, groundLayer);
 
         // Detect the exact frame Granny lands.
         bool justLanded = isGrounded && !wasGrounded;
@@ -76,6 +86,7 @@ public class OldLadyController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        HandleAirRotation();
         HandleUprightRotation();
         // Rope is attached and taut:
         // A/D pumps Granny's swing.
@@ -192,6 +203,16 @@ public class OldLadyController : MonoBehaviour
         {
             groundedTimer = 0f;
         }
+    }
+
+    private void HandleAirRotation()
+    {
+        if (isGrounded)
+            return;
+
+        rb.MoveRotation(
+            rb.rotation - rotationInput * rotationSpeed * Time.fixedDeltaTime
+        );
     }
 
 }
