@@ -29,6 +29,18 @@ public class OldLadyController : MonoBehaviour
     public InputActionReference moveAction;
     public InputActionReference jumpAction;
 
+    [Header("Trick Input")]
+    public InputActionReference trickModifierAction;
+    public PlayerTrickTracker trickTracker;
+
+    [Header("Spin Trick")]
+    public float spinSpeed = 720f;
+
+    private bool isSpinning;
+    private bool spinInputReleased = true;
+    private float spinRemaining;
+    private float spinDirection;
+
     private Rigidbody2D rb;
     private float horizontalInput;
     private bool isGrounded;
@@ -43,10 +55,15 @@ public class OldLadyController : MonoBehaviour
 
     private float rotationInput;
 
+    [Header("Visuals")]
+    public SpriteRenderer spriteRenderer;
 
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+
+        if (trickTracker == null)
+            trickTracker = GetComponent<PlayerTrickTracker>();
     }
 
     private void OnEnable()
@@ -54,6 +71,7 @@ public class OldLadyController : MonoBehaviour
         moveAction.action.Enable();
         jumpAction.action.Enable();
         rotateAction.action.Enable();
+        trickModifierAction.action.Enable();
 
         jumpAction.action.performed += Jump;
     }
@@ -65,18 +83,35 @@ public class OldLadyController : MonoBehaviour
         moveAction.action.Disable();
         jumpAction.action.Disable();
         rotateAction.action.Disable();
+        trickModifierAction.action.Disable();
     }
 
     private void Update()
     {
-        horizontalInput = moveAction.action.ReadValue<Vector2>().x;
-        rotationInput = rotateAction.action.ReadValue<float>();
-        isGrounded = Physics2D.Raycast(rb.position, Vector2.down, groundCheckDistance, groundLayer);
+        horizontalInput =
+            moveAction.action.ReadValue<Vector2>().x;
+
+        rotationInput =
+            rotateAction.action.ReadValue<float>();
+
+        isGrounded = Physics2D.Raycast(
+            rb.position,
+            Vector2.down,
+            groundCheckDistance,
+            groundLayer
+        );
+
+        HandleSpinInput();
+        HandleSpin();
+
+        HandleFacingDirection();
 
         // Detect the exact frame Granny lands.
         bool justLanded = isGrounded && !wasGrounded;
 
-        if (justLanded && grapple != null && grapple.IsGrappling)
+        if (justLanded &&
+            grapple != null &&
+            grapple.IsGrappling)
         {
             grapple.DisconnectGrapple();
         }
@@ -214,5 +249,110 @@ public class OldLadyController : MonoBehaviour
             rb.rotation - rotationInput * rotationSpeed * Time.fixedDeltaTime
         );
     }
+
+    private void HandleFacingDirection()
+    {
+        if (spriteRenderer == null)
+            return;
+
+        // While F is held, A/D are trick controls.
+        // Don't change Granny's facing direction.
+        if (trickModifierAction.action.IsPressed())
+            return;
+
+        if (horizontalInput > 0.01f)
+        {
+            // Facing right
+            spriteRenderer.flipX = false;
+        }
+        else if (horizontalInput < -0.01f)
+        {
+            // Facing left
+            spriteRenderer.flipX = true;
+        }
+    }
+
+    private void HandleSpinInput()
+    {
+        // Spins can only be performed in the air.
+        if (isGrounded)
+            return;
+
+        bool trickHeld = trickModifierAction.action.IsPressed();
+
+        // A/D has returned to neutral, so another spin can be triggered.
+        if (Mathf.Abs(horizontalInput) < 0.1f)
+        {
+            spinInputReleased = true;
+        }
+
+        if (!trickHeld || isSpinning || !spinInputReleased)
+            return;
+
+        if (horizontalInput < -0.5f)
+        {
+            StartSpin(-1f);
+        }
+        else if (horizontalInput > 0.5f)
+        {
+            StartSpin(1f);
+        }
+    }
+
+    private void StartSpin(float direction)
+    {
+        isSpinning = true;
+        spinInputReleased = false;
+        spinRemaining = 360f;
+        spinDirection = direction;
+    }
+
+    private void HandleSpin()
+    {
+        if (!isSpinning || spriteRenderer == null)
+            return;
+
+        float amount =
+            Mathf.Min(spinSpeed * Time.deltaTime, spinRemaining);
+
+        spriteRenderer.transform.Rotate(
+            0f,
+            amount * spinDirection,
+            0f,
+            Space.Self
+        );
+
+        spinRemaining -= amount;
+
+        if (spinRemaining <= 0f)
+        {
+            isSpinning = false;
+
+            Vector3 angles = spriteRenderer.transform.localEulerAngles;
+
+            spriteRenderer.transform.localEulerAngles =
+                new Vector3(
+                    angles.x,
+                    0f,
+                    angles.z
+                );
+
+            Debug.Log("SPIN ANIMATION FINISHED");
+
+            if (trickTracker != null)
+            {
+                Debug.Log("TrickTracker found!");
+
+                trickTracker.RegisterSpin(
+                    spinDirection < 0f ? -1 : 1
+                );
+            }
+            else
+            {
+                Debug.LogError("TRICK TRACKER IS NULL!");
+            }
+        }
+    }
+    
 
 }

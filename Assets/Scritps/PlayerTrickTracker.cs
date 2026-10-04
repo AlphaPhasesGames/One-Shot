@@ -6,6 +6,7 @@ public class PlayerTrickTracker : MonoBehaviour
     [Header("References")]
     public Rigidbody2D rb;
     public PlayerGrapple grapple;
+    public SpriteRenderer spriteRenderer;
     [Header("Live Rotation UI")]
     public GameObject rotationUI;
     public TMP_Text rotationText;
@@ -14,6 +15,12 @@ public class PlayerTrickTracker : MonoBehaviour
     public GameObject lastTrickUI;
     public TMP_Text lastTrickText;
     public TMP_Text lastTrickPointsText;
+
+    [Header("Spin")]
+    public int pointsPerSpin = 150;
+
+    private int completedSpins;
+    private int spinDirection;
 
     [Header("Score UI")]
     public TMP_Text scoreText;
@@ -32,6 +39,9 @@ public class PlayerTrickTracker : MonoBehaviour
     private bool wasGrounded;
 
     private int totalScore;
+
+    private bool facingLeftWhenTrickStarted;
+    private bool trickDirectionLocked;
 
     private void Start()
     {
@@ -64,6 +74,10 @@ public class PlayerTrickTracker : MonoBehaviour
             totalRotation = 0f;
             previousRotation = rb.rotation;
             grappleReleasedForRotation = false;
+            trickDirectionLocked = false;
+
+            completedSpins = 0;
+            spinDirection = 0;
 
             if (rotationUI != null)
                 rotationUI.SetActive(false);
@@ -101,6 +115,15 @@ public class PlayerTrickTracker : MonoBehaviour
             currentRotation
         );
 
+        if (!trickDirectionLocked &&
+        Mathf.Abs(rotationChange) > 0.1f)
+        {
+            facingLeftWhenTrickStarted =
+                spriteRenderer != null && spriteRenderer.flipX;
+
+            trickDirectionLocked = true;
+        }
+
         totalRotation += rotationChange;
         previousRotation = currentRotation;
 
@@ -128,12 +151,18 @@ public class PlayerTrickTracker : MonoBehaviour
         int completedRotations =
             Mathf.FloorToInt(Mathf.Abs(totalRotation) / 360f);
 
-        // Didn't complete a full rotation.
-        if (completedRotations <= 0)
+        // Nothing was performed.
+        if (completedRotations <= 0 && completedSpins <= 0)
             return;
 
-        int completedDegrees = completedRotations * 360;
-        int trickScore = completedRotations * pointsPerRotation;
+        int flipScore =
+            completedRotations * pointsPerRotation;
+
+        int spinScore =
+            completedSpins * pointsPerSpin;
+
+        int trickScore =
+            flipScore + spinScore;
 
         totalScore += trickScore;
 
@@ -142,8 +171,47 @@ public class PlayerTrickTracker : MonoBehaviour
 
         if (lastTrickText != null)
         {
-            lastTrickText.text =
-                completedDegrees + "° ROTATION";
+            string trickName = "";
+
+            // Add flips.
+            if (completedRotations > 0)
+            {
+                string flipDirection = GetFlipDirection();
+
+                if (completedRotations == 1)
+                {
+                    trickName = flipDirection;
+                }
+                else
+                {
+                    trickName =
+                        completedRotations + "x " + flipDirection;
+                }
+            }
+
+            // Add spins.
+            if (completedSpins > 0)
+            {
+                string spinName =
+                    spinDirection < 0
+                        ? "LEFT SPIN"
+                        : "RIGHT SPIN";
+
+                if (trickName != "")
+                    trickName += " + ";
+
+                if (completedSpins == 1)
+                {
+                    trickName += spinName;
+                }
+                else
+                {
+                    trickName +=
+                        completedSpins + "x " + spinName;
+                }
+            }
+
+            lastTrickText.text = trickName;
         }
 
         if (lastTrickPointsText != null)
@@ -166,13 +234,37 @@ public class PlayerTrickTracker : MonoBehaviour
         int completedRotations =
             Mathf.FloorToInt(Mathf.Abs(totalRotation) / 360f);
 
-        rotationText.text = degrees + "°";
+        string text = "";
 
-        if (completedRotations > 0)
+        // Show flip rotation.
+        if (Mathf.Abs(totalRotation) >= minimumRotationToShow)
         {
-            rotationText.text +=
-                "\n" + completedRotations + "x Rotation";
+            text = degrees + "°";
+
+            if (completedRotations > 0)
+            {
+                string flipDirection = GetFlipDirection();
+
+                text +=
+                    "\n" + completedRotations + "x " + flipDirection;
+            }
         }
+
+        // Show spins.
+        if (completedSpins > 0)
+        {
+            string spinName =
+                spinDirection < 0
+                    ? "LEFT SPIN"
+                    : "RIGHT SPIN";
+
+            if (text != "")
+                text += "\n";
+
+            text += completedSpins + "x " + spinName;
+        }
+
+        rotationText.text = text;
     }
 
     private void UpdateScoreUI()
@@ -183,5 +275,37 @@ public class PlayerTrickTracker : MonoBehaviour
         scoreText.text = totalScore.ToString();
     }
 
+    private string GetFlipDirection()
+    {
+        //bool facingLeft = spriteRenderer != null && spriteRenderer.flipX;
+        bool positiveRotation = totalRotation > 0f;
 
+        // Mirroring Granny reverses which physical rotation
+        // appears to be a forward/back flip.
+        if (facingLeftWhenTrickStarted)
+        {
+            return positiveRotation
+                ? "FORWARD FLIP"
+                : "BACKFLIP";
+        }
+        else
+        {
+            return positiveRotation
+                ? "BACKFLIP"
+                : "FORWARD FLIP";
+        }
+    }
+
+    public void RegisterSpin(int direction)
+    {
+        completedSpins++;
+        spinDirection = direction;
+
+        if (rotationUI != null)
+            rotationUI.SetActive(true);
+
+        UpdateRotationUI();
+
+        Debug.Log("Spin registered! Total spins: " + completedSpins);
+    }
 }
